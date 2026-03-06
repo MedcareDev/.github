@@ -1,0 +1,86 @@
+name: Reusable — Quasar Frontend CI/CD
+
+on:
+  workflow_call:
+    inputs:
+      service-name:
+        required: true
+        type: string
+      node-version:
+        default: '20'
+        type: string
+    secrets:
+      YC_SA_KEY:
+        required: true
+      MK_SSH_KEY:
+        required: true
+      MK_SSH_HOST:
+        required: true
+
+jobs:
+  ci:
+    name: Lint & Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Quasar CLI
+        run: npm install -g @quasar/cli
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: quasar build
+
+  deploy:
+    name: Docker Build & Deploy
+    needs: ci
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/dev'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Docker login (Yandex Container Registry)
+        run: |
+          echo '${{ secrets.YC_SA_KEY }}' | \
+            docker login cr.yandex --username json_key --password-stdin
+
+      - name: Build & Push image
+        id: build
+        run: |
+          TAG=$(git rev-parse --short HEAD)
+          IMAGE="cr.yandex/crpm3o5it12l205kdqa4/${{ inputs.service-name }}:${TAG}"
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
+          echo "image=$IMAGE" >> $GITHUB_OUTPUT
+
+      - name: Deploy to MK
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          IMAGE: ${{ steps.build.outputs.image }}
+          SERVICE: ${{ inputs.service-name }}
+          IS_DEV: ${{ github.ref == 'refs/heads/dev' }}
+        with:
+          host: ${{ secrets.MK_SSH_HOST }}
+          username: medcare_admin
+          key: ${{ secrets.MK_SSH_KEY }}
+          envs: IMAGE,SERVICE,IS_DEV
+          script: |
+            if [ "$IS_DEV" = "true" ]; then
+              COMPOSE_FILE="/home/medcare_admin/docker-compose-dev.yml"
+            else
+              COMPOSE_FILE="/home/medcare_admin/docker-compose.yml"
+            fi
+            sed -i "s|cr.yandex/crpm3o5it12l205kdqa4/${SERVICE}:[^ ]*|${IMAGE}|g" "$COMPOSE_FILE"
+            docker compose -f "$COMPOSE_FILE" pull "$SERVICE"
+            docker compose -f "$COMPOSE_FILE" up -d "$SERVICE"
+            echo "Deployed ${IMAGE} to $COMPOSE_FILE"
