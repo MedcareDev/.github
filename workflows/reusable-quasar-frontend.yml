@@ -10,7 +10,7 @@ on:
         default: '20'
         type: string
     secrets:
-      YC_SA_KEY:
+      YC_OAUTH_TOKEN:
         required: true
       MK_SSH_KEY:
         required: true
@@ -51,8 +51,8 @@ jobs:
 
       - name: Docker login (Yandex Container Registry)
         run: |
-          echo '${{ secrets.YC_SA_KEY }}' | \
-            docker login cr.yandex --username json_key --password-stdin
+          echo '${{ secrets.YC_OAUTH_TOKEN }}' | \
+            docker login cr.yandex --username oauth --password-stdin
 
       - name: Build & Push image
         id: build
@@ -83,4 +83,4 @@ jobs:
             sed -i "s|cr.yandex/crpm3o5it12l205kdqa4/${SERVICE}:[^ ]*|${IMAGE}|g" "$COMPOSE_FILE"
             docker compose -f "$COMPOSE_FILE" pull "$SERVICE"
             docker compose -f "$COMPOSE_FILE" up -d "$SERVICE"
-            echo "Deployed ${IMAGE} to $COMPOSE_FILE"
+            echo "Deployed ${IMAGE} to $GITHUB_OUTPUT"
