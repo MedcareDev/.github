@@ -9,11 +9,14 @@ on:
       node-version:
         default: '20'
         type: string
+      run-lint:
+        default: false
+        type: boolean
       run-tests:
-        default: true
+        default: false
         type: boolean
     secrets:
-      YC_OAUTH_TOKEN:
+      YC_SA_KEY:
         required: true
       MK_SSH_KEY:
         required: true
@@ -36,6 +39,7 @@ jobs:
         run: npm ci
 
       - name: Lint
+        if: ${{ inputs.run-lint }}
         run: npm run lint
 
       - name: Test
@@ -52,8 +56,8 @@ jobs:
 
       - name: Docker login (Yandex Container Registry)
         run: |
-          echo '${{ secrets.YC_OAUTH_TOKEN }}' | \
-            docker login cr.yandex --username oauth --password-stdin
+          echo '${{ secrets.YC_SA_KEY }}' | \
+            docker login cr.yandex --username json_key --password-stdin
 
       - name: Build & Push image
         id: build

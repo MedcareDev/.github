@@ -10,7 +10,7 @@ on:
         default: '20'
         type: string
     secrets:
-      YC_OAUTH_TOKEN:
+      YC_SA_KEY:
         required: true
       MK_SSH_KEY:
         required: true
@@ -51,8 +51,8 @@ jobs:
 
       - name: Docker login (Yandex Container Registry)
         run: |
-          echo '${{ secrets.YC_OAUTH_TOKEN }}' | \
-            docker login cr.yandex --username oauth --password-stdin
+          echo '${{ secrets.YC_SA_KEY }}' | \
+            docker login cr.yandex --username json_key --password-stdin
 
       - name: Build & Push image
         id: build
