@@ -75,6 +75,7 @@ jobs:
           key: ${{ secrets.MK_SSH_KEY }}
           envs: IMAGE,SERVICE,IS_DEV
           script: |
+            set -e
             if [ "$IS_DEV" = "true" ]; then
               COMPOSE_FILE="/home/medcare_admin/docker-compose-dev.yml"
             else
@@ -83,4 +84,4 @@ jobs:
             sed -i "s|cr.yandex/crpm3o5it12l205kdqa4/${SERVICE}:[^ ]*|${IMAGE}|g" "$COMPOSE_FILE"
             docker compose -f "$COMPOSE_FILE" pull "$SERVICE"
             docker compose -f "$COMPOSE_FILE" up -d "$SERVICE"
-            echo "Deployed ${IMAGE} to $GITHUB_OUTPUT"
+            echo "Deployed ${IMAGE} to $COMPOSE_FILE"

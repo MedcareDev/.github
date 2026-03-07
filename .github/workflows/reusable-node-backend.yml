@@ -80,6 +80,7 @@ jobs:
           key: ${{ secrets.MK_SSH_KEY }}
           envs: IMAGE,SERVICE,IS_DEV
           script: |
+            set -e
             if [ "$IS_DEV" = "true" ]; then
               COMPOSE_FILE="/home/medcare_admin/docker-compose-dev.yml"
             else
