@@ -6,6 +6,10 @@ on:
       service-name:
         required: true
         type: string
+      compose-service:
+        description: 'Docker Compose service key (defaults to service-name if not set)'
+        default: ''
+        type: string
       node-version:
         default: '20'
         type: string
@@ -58,6 +62,7 @@ jobs:
     outputs:
       image: ${{ steps.build.outputs.image }}
       service: ${{ inputs.service-name }}
+      compose-service: ${{ steps.build.outputs.compose-service }}
     steps:
       - uses: actions/checkout@v4
 
@@ -74,6 +79,8 @@ jobs:
           docker build -t "$IMAGE" .
           docker push "$IMAGE"
           echo "image=$IMAGE" >> $GITHUB_OUTPUT
+          COMPOSE_SVC="${{ inputs.compose-service }}"
+          echo "compose-service=${COMPOSE_SVC:-${{ inputs.service-name }}}" >> $GITHUB_OUTPUT
 
   deploy-staging:
     name: Deploy to Staging (MK-corp)
@@ -86,19 +93,20 @@ jobs:
         env:
           IMAGE: ${{ needs.build.outputs.image }}
           SERVICE: ${{ needs.build.outputs.service }}
+          COMPOSE_SERVICE: ${{ needs.build.outputs.compose-service }}
           YC_SA_KEY: ${{ secrets.YC_SA_KEY }}
         with:
           host: ${{ secrets.MKS_SSH_HOST }}
           username: medcare_admin
           key: ${{ secrets.MKS_SSH_KEY }}
-          envs: IMAGE,SERVICE,YC_SA_KEY
+          envs: IMAGE,SERVICE,COMPOSE_SERVICE,YC_SA_KEY
           script: |
             set -e
             echo "$YC_SA_KEY" | docker login cr.yandex --username json_key --password-stdin
             COMPOSE_FILE="/home/medcare_admin/docker-compose.yml"
             sed -i "s|cr.yandex/crpm3o5it12l205kdqa4/${SERVICE}:[^ ]*|${IMAGE}|g" "$COMPOSE_FILE"
-            docker compose -f "$COMPOSE_FILE" pull "$SERVICE"
-            docker compose -f "$COMPOSE_FILE" up -d "$SERVICE"
+            docker compose -f "$COMPOSE_FILE" pull "$COMPOSE_SERVICE"
+            docker compose -f "$COMPOSE_FILE" up -d "$COMPOSE_SERVICE"
             echo "Deployed ${IMAGE} to staging"
 
   deploy-prod:
@@ -112,17 +120,18 @@ jobs:
         env:
           IMAGE: ${{ needs.build.outputs.image }}
           SERVICE: ${{ needs.build.outputs.service }}
+          COMPOSE_SERVICE: ${{ needs.build.outputs.compose-service }}
           YC_SA_KEY: ${{ secrets.YC_SA_KEY }}
         with:
           host: ${{ secrets.MK_SSH_HOST }}
           username: medcare_admin
           key: ${{ secrets.MK_SSH_KEY }}
-          envs: IMAGE,SERVICE,YC_SA_KEY
+          envs: IMAGE,SERVICE,COMPOSE_SERVICE,YC_SA_KEY
           script: |
             set -e
             echo "$YC_SA_KEY" | docker login cr.yandex --username json_key --password-stdin
             COMPOSE_FILE="/home/medcare_admin/docker-compose.yml"
             sed -i "s|cr.yandex/crpm3o5it12l205kdqa4/${SERVICE}:[^ ]*|${IMAGE}|g" "$COMPOSE_FILE"
-            docker compose -f "$COMPOSE_FILE" pull "$SERVICE"
-            docker compose -f "$COMPOSE_FILE" up -d "$SERVICE"
+            docker compose -f "$COMPOSE_FILE" pull "$COMPOSE_SERVICE"
+            docker compose -f "$COMPOSE_FILE" up -d "$COMPOSE_SERVICE"
             echo "Deployed ${IMAGE} to prod"
