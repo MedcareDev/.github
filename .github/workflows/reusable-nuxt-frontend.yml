@@ -91,6 +91,7 @@ jobs:
             sed -i "s|cr.yandex/crpm3o5it12l205kdqa4/${SERVICE}:[^ ]*|${IMAGE}|g" "$COMPOSE_FILE"
             docker compose -f "$COMPOSE_FILE" pull "$SERVICE"
             docker compose -f "$COMPOSE_FILE" up -d "$SERVICE"
+            docker exec medcare_admin-customer_front_proxy-1 nginx -s reload
             echo "Deployed ${IMAGE} to staging"
 
   deploy-prod:
@@ -117,4 +118,5 @@ jobs:
             sed -i "s|cr.yandex/crpm3o5it12l205kdqa4/${SERVICE}:[^ ]*|${IMAGE}|g" "$COMPOSE_FILE"
             docker compose -f "$COMPOSE_FILE" pull "$SERVICE"
             docker compose -f "$COMPOSE_FILE" up -d "$SERVICE"
+            docker exec medcare_admin-customer_front_proxy-1 nginx -s reload
             echo "Deployed ${IMAGE} to prod"
