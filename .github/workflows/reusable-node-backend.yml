@@ -30,6 +30,8 @@ on:
         required: false
       MKS_SSH_HOST:
         required: false
+      GH_PACKAGES_TOKEN:
+        required: false
 
 jobs:
   ci:
@@ -42,6 +44,14 @@ jobs:
         with:
           node-version: ${{ inputs.node-version }}
           cache: npm
+
+      - name: Configure git for private packages
+        env:
+          GH_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
+        run: |
+          if [ -n "$GH_TOKEN" ]; then
+            git config --global url."https://${GH_TOKEN}@github.com/".insteadOf "git+ssh://git@github.com/"
+          fi
 
       - name: Install dependencies
         run: npm ci
@@ -73,10 +83,18 @@ jobs:
 
       - name: Build & Push image
         id: build
+        env:
+          GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
         run: |
           TAG=$(git rev-parse --short HEAD)
           IMAGE="cr.yandex/crpm3o5it12l205kdqa4/${{ inputs.service-name }}:${TAG}"
-          docker build -t "$IMAGE" .
+          SECRET_ARGS=""
+          if [ -n "$GH_PACKAGES_TOKEN" ]; then
+            printf '%s' "$GH_PACKAGES_TOKEN" > /tmp/github_token.txt
+            SECRET_ARGS="--secret id=github_token,src=/tmp/github_token.txt"
+          fi
+          DOCKER_BUILDKIT=1 docker build $SECRET_ARGS -t "$IMAGE" .
+          [ -f /tmp/github_token.txt ] && rm -f /tmp/github_token.txt
           docker push "$IMAGE"
           echo "image=$IMAGE" >> $GITHUB_OUTPUT
           COMPOSE_SVC="${{ inputs.compose-service }}"
