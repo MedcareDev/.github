@@ -51,17 +51,12 @@ jobs:
         run: |
           echo "GH_TOKEN set: $(if [ -n "$GH_TOKEN" ]; then echo YES length=${#GH_TOKEN} prefix=${GH_TOKEN:0:4}; else echo NO; fi)"
           if [ -n "$GH_TOKEN" ]; then
-            git config --global credential.helper store
-            printf 'https://x-access-token:%s@github.com\n' "$GH_TOKEN" > ~/.git-credentials
-            chmod 600 ~/.git-credentials
+            B64=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w 0)
+            git config --global http."https://github.com/".extraHeader "Authorization: Basic ${B64}"
             git config --global url."https://github.com/".insteadOf "git+ssh://git@github.com/"
             git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
-            echo "=== git version ==="
-            git --version
             echo "=== testing git ls-remote ==="
-            git ls-remote https://github.com/MedcareDev/mcMongoConnector.git HEAD 2>&1 | head -5 || echo "git ls-remote FAILED exit=$?"
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: token $GH_TOKEN" https://api.github.com/repos/MedcareDev/mcMongoConnector)
-            echo "API access to mcMongoConnector: HTTP $STATUS"
+            git ls-remote https://github.com/MedcareDev/mcMongoConnector.git HEAD 2>&1 | head -3 || echo "FAILED exit=$?"
           fi
 
       - name: Install dependencies
