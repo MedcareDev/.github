@@ -51,14 +51,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
         run: |
-          echo "GH_TOKEN set: $(if [ -n "$GH_TOKEN" ]; then echo YES length=${#GH_TOKEN} prefix=${GH_TOKEN:0:4}; else echo NO; fi)"
           if [ -n "$GH_TOKEN" ]; then
             B64=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w 0)
             git config --global http."https://github.com/".extraHeader "Authorization: Basic ${B64}"
             git config --global url."https://github.com/".insteadOf "git+ssh://git@github.com/"
             git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
-            echo "=== testing git ls-remote ==="
-            git ls-remote https://github.com/MedcareDev/mcMongoConnector.git HEAD 2>&1 | head -3 || echo "FAILED exit=$?"
           fi
 
       - name: Install dependencies
